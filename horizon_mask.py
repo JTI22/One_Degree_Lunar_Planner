@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import rasterio
-from pyproj import CRS, Transformer
+from pyproj import CRS, Geod, Transformer
 from rasterio.windows import Window, from_bounds
 from scipy.ndimage import map_coordinates
 
@@ -19,7 +19,12 @@ R_MOON = 1737400.0
 OBSERVER_HEIGHT = 2.0
 MAX_RANGE = 150000.0
 AZ_STEP = 0.5
-DEM_FILES = {"dem80": "LDEM_80S_80MPP_ADJ", "dem240": "LDEM_60S_240MPP_ADJ"}
+DEM_FILES = {
+    "dem80": "LDEM_80S_80MPP_ADJ",
+    "dem240": "LDEM_60S_240MPP_ADJ",
+    "dem64": "LDEM_64",
+}
+GEOD = Geod(a=R_MOON, b=R_MOON)
 
 
 def slug(name):
@@ -27,10 +32,11 @@ def slug(name):
 
 
 def find_dem(key):
-    matches = [p for p in DEM_DIR.glob(DEM_FILES[key] + ".*") if p.suffix.lower() in (".tif", ".tiff")]
-    if not matches:
-        raise FileNotFoundError(f"{DEM_FILES[key]} not found in {DEM_DIR}")
-    return matches[0]
+    for suffix in (".tif", ".tiff", ".lbl"):
+        for path in DEM_DIR.glob(DEM_FILES[key] + ".*"):
+            if path.suffix.lower() == suffix:
+                return path
+    raise FileNotFoundError(f"{DEM_FILES[key]} not found in {DEM_DIR}")
 
 
 def elevation_angle(h_point, h_site, distance):
@@ -46,57 +52,46 @@ def flat_horizon():
     return -np.degrees(np.arccos(R_MOON / (R_MOON + OBSERVER_HEIGHT)))
 
 
-def local_frame(to_map, lon, lat):
-    """Map position, unit north/east vectors and map scale factor at the site."""
-    x, y = to_map.transform(lon, lat)
-    d = 1e-4
-    xn, yn = to_map.transform(lon, lat + d)
-    xe, ye = to_map.transform(lon + d, lat)
-    north = np.array([xn - x, yn - y])
-    east = np.array([xe - x, ye - y])
-    true_north = R_MOON * np.radians(d)
-    scale = np.linalg.norm(north) / true_north
-    return x, y, north / np.linalg.norm(north), east / np.linalg.norm(east), scale
-
-
 def compute_mask(dem_path, lat, lon):
+    azimuths = np.arange(0.0, 360.0, AZ_STEP)
     with rasterio.open(dem_path) as src:
+        pixel_m = abs(src.res[0]) if src.crs.is_projected else np.radians(abs(src.res[0])) * R_MOON
+        distances = np.arange(pixel_m, MAX_RANGE + pixel_m, pixel_m)
+
+        az_grid, d_grid = np.meshgrid(azimuths, distances, indexing="ij")
+        ray_lon, ray_lat, _ = GEOD.fwd(np.full(az_grid.size, lon), np.full(az_grid.size, lat),
+                                       az_grid.ravel(), d_grid.ravel())
+
         map_crs = CRS.from_user_input(src.crs.to_wkt())
         to_map = Transformer.from_crs(map_crs.geodetic_crs, map_crs, always_xy=True)
-        x0, y0, north, east, scale = local_frame(to_map, lon, lat)
+        xs, ys = to_map.transform(np.append(ray_lon, lon), np.append(ray_lat, lat))
 
-        pixel = abs(src.transform.a)
-        half = MAX_RANGE * scale + 4 * pixel
-        window = from_bounds(x0 - half, y0 - half, x0 + half, y0 + half, transform=src.transform)
+        margin = 4 * abs(src.res[0])
+        window = from_bounds(xs.min() - margin, ys.min() - margin, xs.max() + margin, ys.max() + margin,
+                             transform=src.transform)
         window = window.round_offsets().round_lengths().intersection(Window(0, 0, src.width, src.height))
-        dem = src.read(1, window=window, masked=True).astype("float64").filled(np.nan)
+        raw = src.read(1, window=window, masked=True).astype("float64").filled(np.nan)
         transform = src.window_transform(window)
+        scale, offset = src.scales[0], src.offsets[0]
 
-    def sample(xs, ys):
-        cols = (np.asarray(xs) - transform.c) / transform.a - 0.5
-        rows = (np.asarray(ys) - transform.f) / transform.e - 0.5
-        return map_coordinates(dem, [rows, cols], order=1, mode="constant", cval=np.nan)
+    dem = raw * scale + offset
+    if offset > 1.0e6:
+        dem -= R_MOON
 
-    h_site = float(sample(np.array([x0]), np.array([y0]))[0])
+    cols = (xs - transform.c) / transform.a - 0.5
+    rows = (ys - transform.f) / transform.e - 0.5
+    heights = map_coordinates(dem, [rows, cols], order=1, mode="constant", cval=np.nan)
+
+    h_site = float(heights[-1])
     if np.isnan(h_site):
         raise ValueError("Site lies outside valid DEM coverage")
 
-    distances = np.arange(pixel, MAX_RANGE + pixel, pixel)
-    azimuths = np.arange(0.0, 360.0, AZ_STEP)
-    horizon = np.empty_like(azimuths)
-    reach = np.empty_like(azimuths)
-
-    for i, az in enumerate(np.radians(azimuths)):
-        direction = np.cos(az) * north + np.sin(az) * east
-        xs = x0 + direction[0] * distances * scale
-        ys = y0 + direction[1] * distances * scale
-        heights = sample(xs, ys)
-        valid = ~np.isnan(heights)
-        angles = elevation_angle(heights[valid], h_site, distances[valid])
-        horizon[i] = angles.max() if angles.size else np.nan
-        reach[i] = distances[valid].max() / 1000.0 if valid.any() else 0.0
-
-    return pd.DataFrame({"az_deg": azimuths, "horizon_deg": horizon, "reach_km": reach}), h_site
+    heights = heights[:-1].reshape(az_grid.shape)
+    angles = elevation_angle(heights, h_site, d_grid)
+    valid = ~np.isnan(heights)
+    horizon = np.where(valid.any(axis=1), np.nanmax(np.where(valid, angles, np.nan), axis=1), np.nan)
+    reach = np.where(valid, d_grid, 0.0).max(axis=1) / 1000.0
+    return pd.DataFrame({"az_deg": azimuths, "horizon_deg": horizon, "reach_km": reach}), h_site, pixel_m
 
 
 def main():
@@ -110,11 +105,12 @@ def main():
             print(f"{site['name']:18s} flat horizon {flat_horizon():.3f} deg -> {out.name}")
             continue
 
-        mask, h_site = compute_mask(find_dem(site["map"]), site["lat"], site["lon"])
+        mask, h_site, pixel_m = compute_mask(find_dem(site["map"]), site["lat"], site["lon"])
         mask.to_csv(out, index=False)
         short = (mask["reach_km"] < MAX_RANGE / 1000.0 - 1).sum()
-        print(f"{site['name']:18s} ground {h_site:8.1f} m | horizon {mask['horizon_deg'].min():6.2f} "
-              f"to {mask['horizon_deg'].max():5.2f} deg | short rays {short:3d}/{len(mask)} -> {out.name}")
+        print(f"{site['name']:18s} {site['map']:6s} {pixel_m:5.0f} m/px | ground {h_site:8.1f} m | horizon "
+              f"{mask['horizon_deg'].min():6.2f} to {mask['horizon_deg'].max():5.2f} deg | "
+              f"short rays {short:3d}/{len(mask)} -> {out.name}")
 
     print("\nAll horizon masks saved in", OUT_DIR)
 
