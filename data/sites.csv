@@ -1,0 +1,7 @@
+name,lat,lon,kind,map,source
+Mons Mouton,-84.78,29.13,planning,dem80,"IM-2 target region, Mons Mouton Plateau"
+Malapert Massif,-85.99,-2.93,planning,dem80,"LROC QuickMap, Constellation Program Targets (Tier 1)"
+Nobile Rim 1,-85.43,37.37,planning,dem80,"LROC QuickMap, A3 Candidate Landing Regions 2022 (region centre)"
+Odysseus (IM-1),-80.1276,1.4367,replay,dem240,"LROC QuickMap, Anthropogenic Features"
+Blue Ghost M1,18.5622,61.8102,replay,flat,"LROC QuickMap, Anthropogenic Features"
+Athena (IM-2),-84.7906,29.19567,replay,dem80,"LROC QuickMap, Anthropogenic Features"
