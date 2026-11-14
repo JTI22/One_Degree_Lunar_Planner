@@ -17,7 +17,7 @@ SITES = [
      "source": "LROC QuickMap, A3 Candidate Landing Regions 2022 (region centre)"},
     {"name": "Odysseus (IM-1)", "lat": -80.12760, "lon": 1.43670, "kind": "replay", "map": "dem240",
      "source": "LROC QuickMap, Anthropogenic Features"},
-    {"name": "Blue Ghost M1", "lat": 18.56220, "lon": 61.81020, "kind": "replay", "map": "flat",
+    {"name": "Blue Ghost M1", "lat": 18.56220, "lon": 61.81020, "kind": "replay", "map": "dem64",
      "source": "LROC QuickMap, Anthropogenic Features"},
     {"name": "Athena (IM-2)", "lat": -84.79060, "lon": 29.19567, "kind": "replay", "map": "dem80",
      "source": "LROC QuickMap, Anthropogenic Features"},
