@@ -1,0 +1,13 @@
+site,landing_utc,slip_days,sun_hours,sun_full_disk_equiv_hours,earth_hours,sun_and_earth_hours,longest_sunlit_hours,hours_to_first_sunset
+Mons Mouton,2026-11-15,0,388,369.7,693,388,383,385.5
+Mons Mouton,2026-11-16,1,391,375.2,693,391,362,361.5
+Mons Mouton,2026-11-22,7,391,375.2,693,391,218,217.5
+Mons Mouton,2026-11-29,14,391,375.2,693,391,341,49.5
+Malapert Massif,2026-11-15,0,425,404.7,0,0,374,50.9
+Malapert Massif,2026-11-16,1,425,399.9,0,0,398,26.9
+Malapert Massif,2026-11-22,7,400,389.7,0,0,400,577.6
+Malapert Massif,2026-11-29,14,400,389.7,0,0,400,409.6
+Nobile Rim 1,2026-11-15,0,230,227.8,156,6,127,126.8
+Nobile Rim 1,2026-11-16,1,230,227.8,156,6,127,102.8
+Nobile Rim 1,2026-11-22,7,219,216.9,226,65,219,668.0
+Nobile Rim 1,2026-11-29,14,219,216.9,170,65,219,500.0
