@@ -1,11 +1,11 @@
-"""Sun and Earth visibility above the terrain horizon: timelines, events and date-slip comparison."""
+"""Sun and Earth visibility above the terrain horizon: timelines, events and landing-date comparison."""
 
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from sites import SITES, PLANNING_WINDOW
+from sites import SITES
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_DIR / "data"
@@ -14,7 +14,6 @@ MASK_DIR = DATA_DIR / "masks"
 OUT_DIR = DATA_DIR / "results"
 
 PLAN_DAYS = 30
-SLIP_DAYS = [0, 1, 7, 14]
 
 
 def slug(name):
@@ -70,32 +69,33 @@ def find_events(timeline):
     return pd.DataFrame(events, columns=["time_utc", "event"]).sort_values("time_utc", ignore_index=True)
 
 
-def longest_run(flags, step_hours):
+def longest_run(flags):
     best = current = 0
     for flag in flags:
         current = current + 1 if flag else 0
         best = max(best, current)
-    return best * step_hours
+    return best
 
 
-def slip_summary(site, timeline):
-    start = pd.Timestamp(PLANNING_WINDOW[0])
+def landing_date_summary(site, timeline, events):
+    """Sun and Earth hours in the first PLAN_DAYS after landing, for every possible landing day."""
+    hours = PLAN_DAYS * 24
+    sunsets = events.loc[events["event"] == "sunset", "time_utc"].to_numpy()
     rows = []
-    for slip in SLIP_DAYS:
-        t0 = start + pd.Timedelta(days=slip)
-        window = timeline[(timeline["time_utc"] >= t0) & (timeline["time_utc"] < t0 + pd.Timedelta(days=PLAN_DAYS))]
-        events = find_events(window)
-        first_sunset = events.loc[events["event"] == "sunset", "time_utc"].min()
+    for start in range(0, len(timeline) - hours + 1, 24):
+        window = timeline.iloc[start:start + hours]
+        t0 = window["time_utc"].iloc[0]
+        later = sunsets[sunsets >= np.datetime64(t0)]
+        first = (later[0] - np.datetime64(t0)) / np.timedelta64(1, "h") if later.size else np.nan
         rows.append({
             "site": site["name"],
             "landing_utc": t0,
-            "slip_days": slip,
             "sun_hours": int(window["sun_up"].sum()),
             "sun_full_disk_equiv_hours": round(float(window["sun_visible_frac"].sum()), 1),
             "earth_hours": int(window["earth_up"].sum()),
             "sun_and_earth_hours": int(window["both_up"].sum()),
-            "longest_sunlit_hours": longest_run(window["sun_up"], 1),
-            "hours_to_first_sunset": None if pd.isna(first_sunset) else round((first_sunset - t0).total_seconds() / 3600, 1),
+            "longest_sunlit_hours": longest_run(window["sun_up"]),
+            "hours_to_first_sunset": round(float(first), 1) if first <= hours else np.nan,
         })
     return rows
 
@@ -113,11 +113,14 @@ def main():
         print(f"{site['name']:18s} rows {len(timeline):5d} | Sun up {timeline['sun_up'].mean() * 100:5.1f}% "
               f"| Earth up {timeline['earth_up'].mean() * 100:5.1f}% | events {len(events)}")
         if site["kind"] == "planning":
-            summary.extend(slip_summary(site, timeline))
+            summary.extend(landing_date_summary(site, timeline, events))
 
-    pd.DataFrame(summary).to_csv(OUT_DIR / "planning_summary.csv", index=False)
-    print("\nDate-slip comparison (first 30 days after landing):")
-    print(pd.DataFrame(summary).drop(columns=["landing_utc"]).to_string(index=False))
+    summary = pd.DataFrame(summary)
+    summary.to_csv(OUT_DIR / "planning_summary.csv", index=False)
+    print(f"\nLanding-date comparison: {summary['landing_utc'].nunique()} landing days per site "
+          f"({summary['landing_utc'].min():%d %b %Y} to {summary['landing_utc'].max():%d %b %Y})")
+    stats = summary.groupby("site")[["sun_hours", "earth_hours", "sun_and_earth_hours"]].agg(["min", "max"])
+    print(stats.to_string())
     print("\nAll results saved in", OUT_DIR)
 
 

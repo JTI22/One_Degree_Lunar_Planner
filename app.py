@@ -5,15 +5,18 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image, ImageOps
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_DIR / "data"
 RESULTS_DIR = DATA_DIR / "results"
 MASK_DIR = DATA_DIR / "masks"
+FIGURES_DIR = DATA_DIR / "figures"
 
 SUN_COLOR = "#f2a900"
-EARTH_COLOR = "#2f7ed8"
+EARTH_COLOR = "#3d8bfd"
 TERRAIN_COLOR = "rgba(140, 123, 107, 0.85)"
+SITE_COLORS = {"Mons Mouton": "#2ec4b6", "Malapert Massif": "#b388ff", "Nobile Rim 1": "#ff8a65"}
 
 QUICKMAP_REFERENCE = pd.DataFrame([
     {"site": "Mons Mouton", "nasa_sun_pct": 46.7, "nasa_earth_pct": 93.3, "note": "Read at IM-2 Athena lander point"},
@@ -28,6 +31,20 @@ HEIGHT_CHECK = pd.DataFrame([
 ])
 
 st.set_page_config(page_title="One Degree | Lunar Landing Planner", page_icon="🌗", layout="wide")
+
+st.markdown("""
+<style>
+.block-container {max-width: 1250px; padding-top: 2.2rem;}
+h1 {letter-spacing: 0.5px;}
+.tagline {color: #a9b1bd; font-size: 1.05rem; margin-top: -0.6rem; margin-bottom: 1.2rem;}
+div[data-testid="stMetric"] {
+    background: #151a23; border: 1px solid #262d3a; border-radius: 10px; padding: 0.7rem 0.9rem;
+}
+div[data-testid="stMetricLabel"] p {color: #a9b1bd;}
+button[data-baseweb="tab"] p {font-size: 1rem;}
+footer {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 
 
 def slug(name):
@@ -75,7 +92,7 @@ def sky_figure(mask, timeline, moment=None, title=""):
     if moment is not None:
         for body, color, label in (("sun", SUN_COLOR, "Sun now"), ("earth", EARTH_COLOR, "Earth now")):
             fig.add_trace(go.Scatter(x=[moment[f"{body}_az"]], y=[moment[f"{body}_el"]], mode="markers",
-                                     marker=dict(size=16, color=color, line=dict(color="black", width=2)),
+                                     marker=dict(size=16, color=color, line=dict(color="white", width=2)),
                                      name=label))
     fig.update_layout(title=title, height=430, margin=dict(l=10, r=10, t=50, b=10),
                       xaxis=dict(title="Direction (azimuth)", range=[0, 360], tickvals=list(range(0, 361, 45)),
@@ -106,10 +123,11 @@ planning = sites[sites["kind"] == "planning"]["name"].tolist()
 replays = sites[sites["kind"] == "replay"]["name"].tolist()
 
 st.title("🌗 One Degree")
-st.markdown("**Terrain-aware Sun and Earth visibility for lunar landing sites.** "
-            "At the lunar south pole the Sun skims a few degrees above the horizon, so a single ridge can decide "
-            "whether a lander has sunlight and a view of Earth. This tool combines NASA LOLA terrain with JPL "
-            "Horizons ephemerides to compare sites and landing dates, and tests its predictions against real landers.")
+st.markdown('<p class="tagline">At the lunar south pole the Sun skims a few degrees above the horizon. '
+            'One ridge decides whether a lander has sunlight and a view of Earth.</p>', unsafe_allow_html=True)
+st.markdown("**Terrain-aware Sun and Earth visibility for lunar landing sites.** This tool combines NASA LOLA "
+            "terrain with JPL Horizons ephemerides to compare sites and landing dates, and tests its predictions "
+            "against real landers.")
 
 tab_compare, tab_sky, tab_timeline, tab_replay, tab_method = st.tabs(
     ["Compare sites & dates", "Local sky", "Timeline", "Mission Replay", "Method & validation"])
@@ -117,39 +135,59 @@ tab_compare, tab_sky, tab_timeline, tab_replay, tab_method = st.tabs(
 with tab_compare:
     summary = load_csv("planning_summary.csv")
     summary["landing_utc"] = pd.to_datetime(summary["landing_utc"])
-    slips = sorted(summary["slip_days"].unique())
-    slip = st.radio("Landing delay", slips, horizontal=True,
-                    format_func=lambda d: "On schedule" if d == 0 else f"+{d} day{'s' if d > 1 else ''}")
-    chosen = summary[summary["slip_days"] == slip]
-    landing = chosen["landing_utc"].iloc[0]
-    st.caption(f"Landing {landing:%d %b %Y} 00:00 UTC — totals over the first 30 days on the surface.")
+    days = sorted(summary["landing_utc"].dt.date.unique())
+    landing = st.date_input("Planned landing date (00:00 UTC)", value=days[0], min_value=days[0],
+                            max_value=days[-1], key="landing_date")
+    landing = pd.Timestamp(landing)
+    st.caption(f"Totals over the first 30 days on the surface after landing on {landing:%d %b %Y}. "
+               f"Any landing day from {days[0]:%d %b %Y} to {days[-1]:%d %b %Y} can be compared.")
 
+    chosen = summary[summary["landing_utc"] == landing]
     cols = st.columns(len(chosen))
     for col, (_, row) in zip(cols, chosen.iterrows()):
-        base = summary[(summary["site"] == row["site"]) & (summary["slip_days"] == 0)].iloc[0]
         col.subheader(row["site"])
-        sun_delta = None if slip == 0 else f"{row['sun_hours'] - base['sun_hours']:+d} h vs on time"
-        earth_delta = None if slip == 0 else f"{row['earth_hours'] - base['earth_hours']:+d} h vs on time"
-        col.metric("Sun above terrain", f"{row['sun_hours']} h", sun_delta)
-        col.metric("Earth above terrain", f"{row['earth_hours']} h", earth_delta)
+        col.metric("Sun above terrain", f"{row['sun_hours']} h")
+        col.metric("Earth above terrain", f"{row['earth_hours']} h")
         col.metric("Sun and Earth together", f"{row['sun_and_earth_hours']} h")
         first = row["hours_to_first_sunset"]
         col.metric("First sunset after landing", "none in 30 days" if pd.isna(first) else f"{first:.0f} h")
 
-    bars = go.Figure()
-    for column, label, color in (("sun_hours", "Sun", SUN_COLOR), ("earth_hours", "Earth", EARTH_COLOR),
-                                 ("sun_and_earth_hours", "Sun and Earth", "#5aa469")):
-        bars.add_trace(go.Bar(x=chosen["site"], y=chosen[column], name=label, marker_color=color))
-    bars.update_layout(barmode="group", height=360, yaxis_title="Hours in first 30 days (of 720)",
-                       margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h", y=-0.2))
-    st.plotly_chart(bars, width="stretch")
+    st.markdown("**What a launch slip would change**")
+    rows = []
+    for slip in (0, 1, 7, 14):
+        day = landing + pd.Timedelta(days=slip)
+        for _, row in summary[summary["landing_utc"] == day].iterrows():
+            rows.append({"Site": row["site"], "Landing": "As planned" if slip == 0 else f"+{slip} d",
+                         "Sun and Earth (h)": row["sun_and_earth_hours"],
+                         "First sunset (h)": row["hours_to_first_sunset"]})
+    if rows:
+        slips = pd.DataFrame(rows)
+        order = [c for c in ["As planned", "+1 d", "+7 d", "+14 d"] if c in slips["Landing"].unique()]
+        both = slips.pivot(index="Site", columns="Landing", values="Sun and Earth (h)")[order]
+        sunset = slips.pivot(index="Site", columns="Landing", values="First sunset (h)")[order]
+        c1, c2 = st.columns(2)
+        c1.caption("Hours with both Sun and Earth above the terrain (first 30 days)")
+        c1.dataframe(both.style.format("{:.0f} h"), width="stretch")
+        c2.caption("Hours from landing to the first terrain sunset")
+        c2.dataframe(sunset.style.format("{:.0f} h", na_rep="none"), width="stretch")
+        if len(order) < 4:
+            st.caption("Some delays fall outside the computed date range.")
 
-    st.markdown("**How the landing date changes each site**")
-    pivot = summary.pivot(index="site", columns="slip_days", values="hours_to_first_sunset")
-    pivot.columns = ["On schedule" if c == 0 else f"+{c} d" for c in pivot.columns]
-    st.dataframe(pivot.style.format("{:.0f} h", na_rep="—"), width="stretch")
-    st.caption("Hours from landing to the first terrain sunset. A delay can move a landing from the start of a long "
-               "sunlit period to just before sunset.")
+    metric = st.radio("Show across all landing dates", ["Sun and Earth together", "Sun above terrain",
+                                                        "Earth above terrain"],
+                      horizontal=True, key="trend_metric")
+    column = {"Sun and Earth together": "sun_and_earth_hours", "Sun above terrain": "sun_hours",
+              "Earth above terrain": "earth_hours"}[metric]
+    trend = go.Figure()
+    for site_name, group in summary.groupby("site", sort=False):
+        trend.add_trace(go.Scatter(x=group["landing_utc"], y=group[column], mode="lines", name=site_name,
+                                   line=dict(color=SITE_COLORS.get(site_name), width=2.5)))
+    trend.add_shape(type="line", x0=landing, x1=landing, y0=0, y1=1, yref="paper",
+                    line=dict(color="#e8e6e1", dash="dash", width=1.5))
+    trend.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10), xaxis_title="Landing date (UTC)",
+                        yaxis_title="Hours in first 30 days (of 720)", legend=dict(orientation="h", y=-0.25))
+    st.plotly_chart(trend, width="stretch")
+    st.caption("Each point is one possible landing day. The dashed line marks the selected date.")
 
 with tab_sky:
     site = st.selectbox("Site", planning + replays, key="sky_site")
@@ -187,7 +225,9 @@ with tab_timeline:
     else:
         shown = events.copy()
         shown["time_utc"] = shown["time_utc"].dt.strftime("%Y-%m-%d %H:%M")
+        shown.columns = ["Time (UTC)", "Event"]
         st.dataframe(shown, width="stretch", hide_index=True)
+        st.caption("Short set-and-rise pairs happen when the Sun skims along a ridge line.")
 
 with tab_replay:
     replay = load_csv("mission_replay.csv")
@@ -207,9 +247,9 @@ with tab_replay:
     for _, row in replay.iterrows():
         st.subheader(row["site"])
         timeline = load_timeline(row["site"], "replay")
-        markers = [(row["landed_utc"], "Landed", "#2e7d32"), (row["actual_end_utc"], "Mission end", "#c62828")]
+        markers = [(row["landed_utc"], "Landed", "#43a047"), (row["actual_end_utc"], "Mission end", "#e53935")]
         if pd.notna(row["predicted_sunset_utc"]):
-            markers.append((row["predicted_sunset_utc"], "Predicted sunset", "#6a1b9a"))
+            markers.append((row["predicted_sunset_utc"], "Predicted sunset", "#b388ff"))
         st.plotly_chart(timeline_figure(timeline, markers), width="stretch")
         gap = row["end_minus_sunset_h"]
         if pd.notna(gap) and abs(gap) < 24:
@@ -243,11 +283,13 @@ with tab_method:
    the horizon is the highest apparent terrain angle, using exact spherical geometry and a 2 m observer height.
 4. **Visibility:** the fraction of the Sun or Earth disk above the terrain (circular-segment geometry); rise and set
    times are interpolated between samples.
-5. **Comparison:** date slips of +1, +7 and +14 days, and Mission Replay against three real landers.
+5. **Comparison:** every landing day from 15 Nov 2026 to Dec 2027 (first 30 days on the surface), launch slips of
+   +1, +7 and +14 days, and Mission Replay against three real landers.
 """)
     st.markdown("**Validation 1 — ground height against LROC QuickMap**")
     check = HEIGHT_CHECK.copy()
     check["difference_m"] = (check["our_ground_m"] - check["quickmap_m"]).round(1)
+    check.columns = ["Site", "Terrain map", "Our ground height (m)", "QuickMap (m)", "Difference (m)"]
     st.dataframe(check, width="stretch", hide_index=True)
 
     st.markdown("**Validation 2 — site ranking against NASA LOLA long-term visibility maps (QuickMap)**")
@@ -257,31 +299,35 @@ with tab_method:
         rows.append({"site": site, "our_sun_pct": round(timeline["sun_up"].mean() * 100, 1),
                      "our_earth_pct": round(timeline["earth_up"].mean() * 100, 1)})
     compare = pd.DataFrame(rows).merge(QUICKMAP_REFERENCE, on="site")
-    st.dataframe(compare, width="stretch", hide_index=True)
     same_sun = compare.sort_values("our_sun_pct")["site"].tolist() == compare.sort_values("nasa_sun_pct")["site"].tolist()
     same_earth = (compare.sort_values("our_earth_pct")["site"].tolist()
                   == compare.sort_values("nasa_earth_pct")["site"].tolist())
+    shown = compare.copy()
+    shown.columns = ["Site", "Our Sun (%)", "Our Earth (%)", "NASA Sun (%)", "NASA Earth (%)", "Note"]
+    st.dataframe(shown, width="stretch", hide_index=True)
     st.write(f"Same Sun ranking as NASA: **{'yes' if same_sun else 'no'}** · "
              f"Same Earth ranking as NASA: **{'yes' if same_earth else 'no'}**")
-    st.caption("NASA values are 18.6-year averages; ours cover one 47-day window (15 Nov 2026 – 1 Jan 2027), "
+    st.caption("NASA values are 18.6-year averages; ours cover 15 Nov 2026 – 1 Jan 2028, "
                "so rankings are the fair comparison, not exact percentages.")
 
-
     st.markdown("**Validation 3 — NASA LOLA Earth Visibility map (LROC QuickMap)**")
+    our_earth = dict(zip(compare["site"], compare["our_earth_pct"]))
     shots = [
         ("quickmap_monsmouton_earth.png",
-         "Mons Mouton (IM-2 Athena point): bright, Earth visible most of the time. NASA ≈ 93%, our model 98%."),
+         f"Mons Mouton (IM-2 Athena point): bright, Earth visible most of the time. "
+         f"NASA ≈ 93%, our model {our_earth.get('Mons Mouton', 0):.0f}%."),
         ("quickmap_malapert_earth.png",
-         "Malapert Massif target point: dark side of the ridge, Earth rarely visible. NASA ≈ 5%, our model 0%."),
+         f"Malapert Massif target point: dark side of the ridge, Earth rarely visible. "
+         f"NASA ≈ 5%, our model {our_earth.get('Malapert Massif', 0):.0f}%."),
     ]
     shot_cols = st.columns(len(shots))
     for col, (file_name, caption) in zip(shot_cols, shots):
-        path = DATA_DIR / "figures" / file_name
+        path = FIGURES_DIR / file_name
         if path.exists():
-            col.image(str(path), width="stretch")
+            col.image(ImageOps.fit(Image.open(path), (900, 480), centering=(0.0, 1.0)), width="stretch")
             col.caption(caption)
-    st.caption("Bright = Earth visible most of the time; dark = rarely visible. Source: LROC QuickMap "
-               "(NASA LRO / ASU), LOLA Earth Visibility 240 m layer, accessed 15 Nov 2026.")
+    st.caption("Bright = Earth visible most of the time; dark = rarely visible. Image: LROC QuickMap "
+               "(NASA LRO / Arizona State University), LOLA Earth Visibility 240 m layer, accessed 15 Nov 2026.")
 
     st.markdown("""
 **Limits (stated honestly)**
@@ -291,13 +337,34 @@ with tab_method:
 - The horizon is treated as straight across each disk; this is approximate for Earth (~2° wide).
 - Mission end times come from public statements; Odysseus has a date only (±12 h).
 
-**Data sources**
-- NASA LOLA elevation models: [PGDA product 90](https://pgda.gsfc.nasa.gov/products/90) (Barker et al. 2023) and
-  [LOLA GDR LDEM_64](https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/)
-- [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) — Sun and Earth ephemerides
-- [LROC QuickMap](https://quickmap.lroc.im-ldi.com/) — site positions, ground heights and long-term visibility maps
-- Method background: Mazarico et al. (2011), *Illumination conditions of the lunar polar regions using LOLA topography*
+**References and credits**
 
-**Use of AI:** Claude (Anthropic) assisted with code drafting, debugging and explanations. All results were
-generated by this code from the data above and checked against independent references.
+*Data*
+- Barker, M. K., et al. (2023). A new view of the lunar south pole from the Lunar Orbiter Laser Altimeter (LOLA).
+  *The Planetary Science Journal*, 4, 183. Elevation models: [NASA GSFC PGDA product 90](https://pgda.gsfc.nasa.gov/products/90)
+- LRO LOLA Gridded Data Record, global elevation model LDEM_64, NASA Planetary Data System:
+  [LOLA GDR archive](https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/)
+- [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), NASA Jet Propulsion Laboratory — Sun and Earth ephemerides
+- [LROC QuickMap](https://quickmap.lroc.im-ldi.com/) (NASA LRO / Arizona State University) — site positions,
+  ground heights, LOLA Sun and Earth Visibility layers and the two map images above
+
+*Method*
+- Mazarico, E., et al. (2011). Illumination conditions of the lunar polar regions using LOLA topography.
+  *Icarus*, 211, 1066–1081. [NASA NTRS](https://ntrs.nasa.gov/citations/20120010094)
+
+*Mission facts*
+- Blue Ghost Mission 1: [Firefly Aerospace, 17 Mar 2025](https://fireflyspace.com/news/firefly-aerospace-successfully-completes-14-days-of-surface-operations-on-the-moon)
+- Odysseus (IM-1): [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission);
+  [UPI, 27 Feb 2024](https://www.upi.com/Science_News/2024/02/27/odysseus-moon-landing-mission-cut-short/3691709083948/)
+- Athena (IM-2): [Spaceflight Now, 7 Mar 2025](https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/)
+
+*Software*
+- Python, Streamlit, pandas, NumPy, SciPy, Plotly, Matplotlib, Pillow, rasterio, pyproj, astroquery and Astropy.
+
+*Use of AI*
+- Claude (Anthropic) assisted with code drafting, debugging and explanations. All results were generated by this
+  code from the data above and checked against independent references.
+
+This is an independent student project for the NASA Space Apps Challenge 2026. It uses no NASA logos and is not
+endorsed by NASA.
 """)

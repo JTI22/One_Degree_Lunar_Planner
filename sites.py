@@ -23,7 +23,7 @@ SITES = [
      "source": "LROC QuickMap, Anthropogenic Features"},
 ]
 
-PLANNING_WINDOW = ("2026-11-15", "2027-01-01")
+PLANNING_WINDOW = ("2026-11-15", "2028-01-01")
 
 REPLAY_WINDOWS = {
     "Odysseus (IM-1)": ("2024-02-22 20:00", "2024-03-06 00:00"),
