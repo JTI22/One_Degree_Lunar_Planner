@@ -1,9 +1,8 @@
 # One Degree — Terrain-Aware Lunar Landing Planner
 
-**Live app:** https://onedegreelunarplanner.streamlit.app/
-**Challenge:** NASA Space Apps Challenge 2026 — Lunar Landing Site Navigator (CLPS)
-**Team:** OneXDegree
-
+- **Live app:** https://onedegreelunarplanner.streamlit.app/
+- **Challenge:** NASA Space Apps Challenge 2026 — Lunar Landing Site Navigator (CLPS)
+- **Team:** OneXDegree
 
 At the lunar south pole the Sun skims only a few degrees above the horizon. A single ridge can decide whether a
 lander has sunlight and a direct view of Earth. One Degree combines NASA LOLA terrain with JPL Horizons ephemerides
@@ -125,11 +124,13 @@ python plot_sky.py
 - Mazarico, E., et al. (2011). Illumination conditions of the lunar polar regions using LOLA topography.
   *Icarus*, 211, 1066–1081. [NASA NTRS](https://ntrs.nasa.gov/citations/20120010094)
 
-**Mission facts**
-- Blue Ghost Mission 1: [Firefly Aerospace, 17 Mar 2025](https://fireflyspace.com/news/firefly-aerospace-successfully-completes-14-days-of-surface-operations-on-the-moon)
-- Odysseus (IM-1): [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission);
+- Odysseus (IM-1): landing — [NASA Artemis blog, 22 Feb 2024](https://www.nasa.gov/blogs/artemis/2024/02/22/);
+  end — [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission),
   [UPI, 27 Feb 2024](https://www.upi.com/Science_News/2024/02/27/odysseus-moon-landing-mission-cut-short/3691709083948/)
-- Athena (IM-2): [Spaceflight Now, 7 Mar 2025](https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/)
+- Blue Ghost Mission 1: landing — [NASA, 2 Mar 2025](https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/);
+  end — [Firefly Aerospace, 17 Mar 2025](https://fireflyspace.com/news/firefly-aerospace-successfully-completes-14-days-of-surface-operations-on-the-moon)
+- Athena (IM-2): landing and end — [SpacePolicyOnline, 7 Mar 2025](https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/);
+  [Spaceflight Now, 7 Mar 2025](https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/)
 
 **Software**
 - Python, Streamlit, pandas, NumPy, SciPy, Plotly, Matplotlib, Pillow, rasterio, pyproj, astroquery and Astropy.
