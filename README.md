@@ -149,9 +149,10 @@ python time_step_check.py
 This project used SI tools in line with the NASA Space Apps Challenge SI policy.
 
 - **Tools:** Claude (Anthropic) and ChatGPT (OpenAI).
-- **How they were used:** explaining scientific concepts and methods; helping locate and understand data sources;
-  suggesting options during brainstorming; drafting, reviewing and debugging code; helping interpret results; and
-  editing written text, including this README.
+- **How they were used:** as learning and productivity aids to save time and widen the implementation scope:
+  explaining scientific concepts and methods; helping locate and understand data sources; suggesting options
+  during brainstorming; drafting, reviewing and debugging code; helping interpret results; and drafting and
+  editing written text, including the project page content and this README.
 - **What the team did:** chose the challenge and the problem to focus on; decided the scope, approach and features;
   selected the landing sites and missions; collected site positions and validation values from LROC QuickMap;
   ran, checked and customised every step of the code; reviewed all text; and made all final decisions.

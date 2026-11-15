@@ -304,7 +304,7 @@ with tab_method:
 
     st.caption("The four checks below are independent consistency checks against NASA data and finer time steps. "
                "They support the model; they do not prove every individual hourly event.")
-    
+
     st.markdown("**Validation 1 — ground height against LROC QuickMap**")
     check = HEIGHT_CHECK.copy()
     check["difference_m"] = (check["our_ground_m"] - check["quickmap_m"]).round(1)
