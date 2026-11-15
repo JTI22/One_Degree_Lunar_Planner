@@ -266,6 +266,23 @@ with tab_method:
     st.caption("NASA values are 18.6-year averages; ours cover one 47-day window (15 Nov 2026 – 1 Jan 2027), "
                "so rankings are the fair comparison, not exact percentages.")
 
+
+    st.markdown("**Validation 3 — NASA LOLA Earth Visibility map (LROC QuickMap)**")
+    shots = [
+        ("quickmap_monsmouton_earth.png",
+         "Mons Mouton (IM-2 Athena point): bright, Earth visible most of the time. NASA ≈ 93%, our model 98%."),
+        ("quickmap_malapert_earth.png",
+         "Malapert Massif target point: dark side of the ridge, Earth rarely visible. NASA ≈ 5%, our model 0%."),
+    ]
+    shot_cols = st.columns(len(shots))
+    for col, (file_name, caption) in zip(shot_cols, shots):
+        path = DATA_DIR / "figures" / file_name
+        if path.exists():
+            col.image(str(path), width="stretch")
+            col.caption(caption)
+    st.caption("Bright = Earth visible most of the time; dark = rarely visible. Source: LROC QuickMap "
+               "(NASA LRO / ASU), LOLA Earth Visibility 240 m layer, accessed 15 Nov 2026.")
+
     st.markdown("""
 **Limits (stated honestly)**
 - Results describe **geometric visibility**: sunlight availability and Earth visibility, not power output or a
