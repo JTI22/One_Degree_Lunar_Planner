@@ -152,6 +152,18 @@ with tab_compare:
         first = row["hours_to_first_sunset"]
         col.metric("First sunset after landing", "none in 30 days" if pd.isna(first) else f"{first:.0f} h")
 
+
+
+        bars = go.Figure()
+        for column, label, color in (("sun_hours", "Sun", SUN_COLOR), ("earth_hours", "Earth", EARTH_COLOR),
+                                     ("sun_and_earth_hours", "Sun and Earth", "#5aa469")):
+            bars.add_trace(go.Bar(x=chosen["site"], y=chosen[column], name=label, marker_color=color))
+        bars.update_layout(barmode="group", height=360, yaxis_title="Hours in first 30 days (of 720)",
+                           margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h", y=-0.2))
+        st.plotly_chart(bars, width="stretch")
+
+
+
     st.markdown("**What a launch slip would change**")
     rows = []
     for slip in (0, 1, 7, 14):
@@ -174,10 +186,10 @@ with tab_compare:
             st.caption("Some delays fall outside the computed date range.")
 
     metric = st.radio("Show across all landing dates", ["Sun and Earth together", "Sun above terrain",
-                                                        "Earth above terrain"],
+                                                        "Earth above terrain", "First sunset after landing"],
                       horizontal=True, key="trend_metric")
     column = {"Sun and Earth together": "sun_and_earth_hours", "Sun above terrain": "sun_hours",
-              "Earth above terrain": "earth_hours"}[metric]
+              "Earth above terrain": "earth_hours", "First sunset after landing": "hours_to_first_sunset"}[metric]
     trend = go.Figure()
     for site_name, group in summary.groupby("site", sort=False):
         trend.add_trace(go.Scatter(x=group["landing_utc"], y=group[column], mode="lines", name=site_name,
@@ -185,9 +197,15 @@ with tab_compare:
     trend.add_shape(type="line", x0=landing, x1=landing, y0=0, y1=1, yref="paper",
                     line=dict(color="#e8e6e1", dash="dash", width=1.5))
     trend.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10), xaxis_title="Landing date (UTC)",
-                        yaxis_title="Hours in first 30 days (of 720)", legend=dict(orientation="h", y=-0.25))
+                        yaxis_title="Hours to first sunset" if column == "hours_to_first_sunset"
+                        else "Hours in first 30 days (of 720)", legend=dict(orientation="h", y=-0.25))
     st.plotly_chart(trend, width="stretch")
-    st.caption("Each point is one possible landing day. The dashed line marks the selected date.")
+    if column == "hours_to_first_sunset":
+        st.caption("Each point is one possible landing day. Landing one day later brings the next sunset one day "
+                   "closer, so the line falls steadily and jumps back up after each sunrise. Gaps mean no sunset "
+                   "within 30 days.")
+    else:
+        st.caption("Each point is one possible landing day. The dashed line marks the selected date.")
 
 with tab_sky:
     site = st.selectbox("Site", planning + replays, key="sky_site")
