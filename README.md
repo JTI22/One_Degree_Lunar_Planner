@@ -20,11 +20,11 @@ higher than the Sun itself, and small changes in site or date can change conditi
 
 | Tab | Purpose |
 |---|---|
-| **Compare sites & dates** | Pick any landing day (15 Nov 2026 – Dec 2027) and compare Sun, Earth and combined hours in the first 30 days at three candidate sites, plus the effect of +1, +7 and +14 day launch slips |
+| **Compare sites & dates** | Pick any landing day (15 Nov 2026 – Dec 2027) and compare Sun, Earth and combined hours in the first 30 days at three candidate sites, see the effect of +1, +7 and +14 day launch slips, and view trends across all landing dates |
 | **Local sky** | The terrain horizon in every direction, with the Sun and Earth paths drawn over it; a time slider shows any moment |
-| **Timeline** | Sun and Earth disk visibility over time, with rise and set times interpolated to the minute |
+| **Timeline** | Sun and Earth disk visibility over time, with rise and set times interpolated between samples |
 | **Mission Replay** | The same model applied to Odysseus (IM-1), Blue Ghost Mission 1 and Athena (IM-2), compared with what happened |
-| **Method & validation** | Pipeline, three independent checks against NASA data, limits and references |
+| **Method & validation** | Pipeline, four independent consistency checks, limits and references |
 
 ## Key results
 
@@ -46,6 +46,10 @@ higher than the Sun itself, and small changes in site or date can change conditi
 2. **Site ranking** for Sun and Earth visibility matches NASA's LOLA long-term visibility maps (18.6-year averages).
    At Mons Mouton and Malapert our Sun values agree within 1%.
 3. **NASA Earth Visibility map images** (LROC QuickMap) show Mons Mouton bright and Malapert dark, matching our results.
+4. **Time step:** in the hardest ridge-skimming period (Malapert Massif, 1–12 Feb 2027), hourly data found all 8
+   sunrise and sunset events seen in 10-minute data, with timing differences of at most 13 minutes.
+
+These are independent consistency checks. They support the model but do not prove every individual hourly event.
 
 ## How it works
 
@@ -87,6 +91,7 @@ python horizon_mask.py
 python visibility.py
 python replay.py
 python plot_sky.py
+python time_step_check.py
 ```
 
 ## Project files
@@ -99,6 +104,7 @@ python plot_sky.py
 | `visibility.py` | Disk visibility, rise/set events and landing-date comparison |
 | `replay.py` | Mission Replay against real landers |
 | `plot_sky.py` | Static sky plots |
+| `time_step_check.py` | Compares hourly results with 10-minute results in the hardest period |
 | `app.py` | Streamlit web app |
 | `view_dem.py`, `test_horizons.py` | Setup checks for the terrain map and Horizons access |
 
@@ -109,6 +115,8 @@ python plot_sky.py
 - Terrain smaller than a map pixel is not resolved.
 - The horizon is treated as straight across each disk; this is approximate for Earth (~2° wide).
 - Mission end times come from public statements; Odysseus has a date only (±12 h).
+- Rise and set times are interpolated estimates shown to the nearest minute, not minute-accurate.
+- The planning comparison covers three predefined sites; custom coordinates are future work.
 
 ## References and credits
 
