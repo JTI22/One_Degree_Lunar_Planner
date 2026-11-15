@@ -108,6 +108,10 @@ python time_step_check.py
 | `app.py` | Streamlit web app |
 | `view_dem.py`, `test_horizons.py` | Setup checks for the terrain map and Horizons access |
 
+- **Demo video: ** recorded with the Windows built-in screen recorder, with the team owner's own voice-over,
+  edited in CapCut. No SI-generated images, video or audio are used.
+- **Images:** the two map images are credited screenshots from LROC QuickMap; the team banner was made in Canva.
+
 ## Limits
 
 - Results describe **geometric visibility** (sunlight availability and Earth visibility), not power output or a
