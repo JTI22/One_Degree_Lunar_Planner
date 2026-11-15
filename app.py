@@ -300,6 +300,11 @@ with tab_method:
 5. **Comparison:** every landing day from 15 Nov 2026 to Dec 2027 (first 30 days on the surface), launch slips of
    +1, +7 and +14 days, and Mission Replay against three real landers.
 """)
+
+
+    st.caption("The four checks below are independent consistency checks against NASA data and finer time steps. "
+               "They support the model; they do not prove every individual hourly event.")
+    
     st.markdown("**Validation 1 — ground height against LROC QuickMap**")
     check = HEIGHT_CHECK.copy()
     check["difference_m"] = (check["our_ground_m"] - check["quickmap_m"]).round(1)
