@@ -343,42 +343,59 @@ with tab_method:
     st.caption("Bright = Earth visible most of the time; dark = rarely visible. Image: LROC QuickMap "
                "(NASA LRO / Arizona State University), LOLA Earth Visibility 240 m layer, accessed 15 Nov 2026.")
 
+    st.markdown("**Check 4 — time step: hourly results against 10-minute results**")
+    check_file = RESULTS_DIR / "time_step_check.csv"
+    if check_file.exists():
+        step = pd.read_csv(check_file).iloc[0]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Sun above terrain", f"{step['sun_up_pct_hourly']:.1f}% hourly",
+                  f"{step['sun_up_pct_10min']:.1f}% at 10 min", delta_color="off")
+        c2.metric("Sunset/sunrise events found by hourly data",
+                  f"{int(step['events_10min'] - step['events_missed_by_hourly'])} of {int(step['events_10min'])}")
+        c3.metric("Largest timing difference", f"{step['max_timing_difference_min']:.0f} min")
+        events = pd.read_csv(RESULTS_DIR / "time_step_check_events.csv")
+        events.columns = ["Event time, 10-min data (UTC)", "Event", "Also found in hourly data", "Difference (min)"]
+        st.dataframe(events, width="stretch", hide_index=True)
+        st.caption(f"{step['site']}, {step['window_start']} to {step['window_end']}: the ridge-skimming period with "
+                   "the most rise and set events. The Mission Replay windows already use 10-minute steps.")
+
     st.markdown("""
-**Limits (stated honestly)**
-- Results describe **geometric visibility**: sunlight availability and Earth visibility, not power output or a
-  guaranteed radio link (no panel orientation, link budget or antenna model).
-- Terrain smaller than a map pixel is invisible to the model (80 m, 240 m and 474 m maps).
-- The horizon is treated as straight across each disk; this is approximate for Earth (~2° wide).
-- Mission end times come from public statements; Odysseus has a date only (±12 h).
+    **Limits (stated honestly)**
+    - Results describe **geometric visibility**: sunlight availability and Earth visibility, not power output or a
+      guaranteed radio link (no panel orientation, link budget or antenna model).
+    - Terrain smaller than a map pixel is invisible to the model (80 m, 240 m and 474 m maps).
+    - The horizon is treated as straight across each disk; this is approximate for Earth (~2° wide).
+    - Mission end times come from public statements; Odysseus has a date only (±12 h).
+    - Rise and set times are interpolated estimates shown to the nearest minute, not minute-accurate. In the hardest
+      period tested, hourly data matched 10-minute data within 13 minutes (Check 4).
 
-**References and credits**
+    **References and credits**
 
-*Data*
-- Barker, M. K., et al. (2023). A new view of the lunar south pole from the Lunar Orbiter Laser Altimeter (LOLA).
-  *The Planetary Science Journal*, 4, 183. Elevation models: [NASA GSFC PGDA product 90](https://pgda.gsfc.nasa.gov/products/90)
-- LRO LOLA Gridded Data Record, global elevation model LDEM_64, NASA Planetary Data System:
-  [LOLA GDR archive](https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/)
-- [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), NASA Jet Propulsion Laboratory — Sun and Earth ephemerides
-- [LROC QuickMap](https://quickmap.lroc.im-ldi.com/) (NASA LRO / Arizona State University) — site positions,
-  ground heights, LOLA Sun and Earth Visibility layers and the two map images above
+    *Data*
+    - Barker, M. K., et al. (2023). A new view of the lunar south pole from the Lunar Orbiter Laser Altimeter (LOLA).
+      *The Planetary Science Journal*, 4, 183. Elevation models: [NASA GSFC PGDA product 90](https://pgda.gsfc.nasa.gov/products/90)
+    - LRO LOLA Gridded Data Record, global elevation model LDEM_64, NASA Planetary Data System:
+      [LOLA GDR archive](https://imbrium.mit.edu/DATA/LOLA_GDR/CYLINDRICAL/IMG/)
+    - [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), NASA Jet Propulsion Laboratory — Sun and Earth ephemerides
+    - [LROC QuickMap](https://quickmap.lroc.im-ldi.com/) (NASA LRO / Arizona State University) — site positions,
+      ground heights, LOLA Sun and Earth Visibility layers and the two map images above
 
-*Method*
-- Mazarico, E., et al. (2011). Illumination conditions of the lunar polar regions using LOLA topography.
-  *Icarus*, 211, 1066–1081. [NASA NTRS](https://ntrs.nasa.gov/citations/20120010094)
+    *Method*
+    - Mazarico, E., et al. (2011). Illumination conditions of the lunar polar regions using LOLA topography.
+      *Icarus*, 211, 1066–1081. [NASA NTRS](https://ntrs.nasa.gov/citations/20120010094)
 
-*Mission facts*
-- Odysseus (IM-1): landing — [NASA Artemis blog, 22 Feb 2024](https://www.nasa.gov/blogs/artemis/2024/02/22/);
-  end — [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission),
-  [UPI, 27 Feb 2024](https://www.upi.com/Science_News/2024/02/27/odysseus-moon-landing-mission-cut-short/3691709083948/)
-- Blue Ghost Mission 1: landing — [NASA, 2 Mar 2025](https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/);
-  end — [Firefly Aerospace, 17 Mar 2025](https://fireflyspace.com/news/firefly-aerospace-successfully-completes-14-days-of-surface-operations-on-the-moon)
-- Athena (IM-2): landing and end — [SpacePolicyOnline, 7 Mar 2025](https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/);
-  [Spaceflight Now, 7 Mar 2025](https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/)
-  
-  
-*Software*
-- Python, Streamlit, pandas, NumPy, SciPy, Plotly, Matplotlib, Pillow, rasterio, pyproj, astroquery and Astropy.
+    *Mission facts*
+    - Odysseus (IM-1): landing — [NASA Artemis blog, 22 Feb 2024](https://www.nasa.gov/blogs/artemis/2024/02/22/);
+      end — [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission),
+      [UPI, 27 Feb 2024](https://www.upi.com/Science_News/2024/02/27/odysseus-moon-landing-mission-cut-short/3691709083948/)
+    - Blue Ghost Mission 1: landing — [NASA, 2 Mar 2025](https://www.nasa.gov/news-release/touchdown-carrying-nasa-science-fireflys-blue-ghost-lands-on-moon/);
+      end — [Firefly Aerospace, 17 Mar 2025](https://fireflyspace.com/news/firefly-aerospace-successfully-completes-14-days-of-surface-operations-on-the-moon)
+    - Athena (IM-2): landing and end — [SpacePolicyOnline, 7 Mar 2025](https://spacepolicyonline.com/news/im-2-mission-ends-one-day-after-lunar-landing/);
+      [Spaceflight Now, 7 Mar 2025](https://spaceflightnow.com/2025/03/07/intuitive-machines-im-2-mission-ends-with-lander-on-its-side-on-the-moon/)
 
-This is an independent student project for the NASA Space Apps Challenge 2026. It uses no NASA logos and is not
-endorsed by NASA.
-""")
+    *Software*
+    - Python, Streamlit, pandas, NumPy, SciPy, Plotly, Matplotlib, Pillow, rasterio, pyproj, astroquery and Astropy.
+
+    This is an independent student project for the NASA Space Apps Challenge 2026. It uses no NASA logos and is not
+    endorsed by NASA.
+    """)

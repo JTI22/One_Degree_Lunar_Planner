@@ -1,0 +1,2 @@
+site,window_start,window_end,sun_up_pct_10min,sun_up_pct_hourly,events_10min,events_hourly,events_missed_by_hourly,max_timing_difference_min
+Malapert Massif,2027-02-01,2027-02-12,94.5,94.7,8,8,0,13.0
