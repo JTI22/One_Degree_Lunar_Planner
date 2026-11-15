@@ -124,6 +124,7 @@ python plot_sky.py
 - Mazarico, E., et al. (2011). Illumination conditions of the lunar polar regions using LOLA topography.
   *Icarus*, 211, 1066–1081. [NASA NTRS](https://ntrs.nasa.gov/citations/20120010094)
 
+**Mission facts**
 - Odysseus (IM-1): landing — [NASA Artemis blog, 22 Feb 2024](https://www.nasa.gov/blogs/artemis/2024/02/22/);
   end — [Universe Today, 2024](https://universetoday.com/166340/lunar-night-permanently-ends-the-odysseus-mission),
   [UPI, 27 Feb 2024](https://www.upi.com/Science_News/2024/02/27/odysseus-moon-landing-mission-cut-short/3691709083948/)
